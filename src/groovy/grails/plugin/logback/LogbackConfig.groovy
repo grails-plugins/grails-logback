@@ -36,7 +36,7 @@ class LogbackConfig {
 	protected Map appenders = [:]
 	protected ConfigObject config
 	protected List created = []
-	protected static LoggerContext context = getLoggerFactory().loggerContext
+	protected LoggerContext context = LoggerFactory.getILoggerFactory()
 
 	protected static final String DEFAULT_ENCODER_PATTERN = '%d [%t] %-5p %c{2} %X - %m%n'
 
@@ -44,15 +44,20 @@ class LogbackConfig {
 		this.config = config
 	}
 
+	void reset() {
+		context.reset()
+		context.statusManager.add new GrailsLogbackStatusListener()
+	}
+
 	static void initialize(ConfigObject config) {
 		if (config == null) {
 			return
 		}
 
-		getLoggerFactory().reset()
-
 		Object logback = config.logback
 		LogbackConfig logbackConfig = new LogbackConfig(config)
+		logbackConfig.reset()
+
 		if (logback instanceof Closure) {
 			logbackConfig.configure((Closure<?>)logback)
 		}
@@ -194,7 +199,7 @@ class LogbackConfig {
 
 	void configure(Closure callable) {
 
-		Logger root = getRootLogger()
+		ch.qos.logback.classic.Logger root = getRootLogger()
 		root.setLevel Level.ERROR
 
 		Appender consoleAppender = createConsoleAppender()
@@ -208,13 +213,13 @@ class LogbackConfig {
 		try {
 			callable.call root
 
-			if (!root.allAppenders.hasNext()) {
+			if (!root.iteratorForAppenders().hasNext()) {
 				root.addAppender appenders.stdout
 			}
-			Logger logger = LoggerFactory.getLogger('StackTrace')
+			ch.qos.logback.classic.Logger logger = LoggerFactory.getLogger('StackTrace')
 			logger.additive = false
 			Appender fileAppender = createFullstackTraceAppender()
-			if (!logger.allAppenders.hasNext()) {
+			if (!logger.iteratorForAppenders().hasNext()) {
 				logger.addAppender fileAppender
 			}
 		}
@@ -395,7 +400,7 @@ class LogbackConfig {
 	}
 
 	void removeAppender(String name) {
-		getRootLogger().detachAppender(name);
+		getRootLogger().detachAppender(name)
 	}
 
 	/**
@@ -424,12 +429,8 @@ class LogbackConfig {
 		}
 	}
 
-	protected LogbackLoggerAdapter getRootLogger() {
+	protected ch.qos.logback.classic.Logger getRootLogger() {
 		LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
-	}
-
-	protected static LogbackLoggerFactory getLoggerFactory() {
-		LoggerFactory.getILoggerFactory()
 	}
 
 	protected Encoder createDefaultEncoder() {

@@ -17,10 +17,11 @@ class LogbackGrailsPlugin {
 	String description = 'Replaces Log4j with Logback for logging'
 	String documentation = 'http://grails.org/plugin/logback'
 	String packaging = 'binary'
-	List loadBefore = ['core', 'log4j']
-	List evict = ['log4j']
+	List loadBefore = ['core', 'logging']
+	List evict = ['logging']
 
 	String license = 'APACHE'
+	def organization = [name: 'SpringSource', url: 'http://www.springsource.org/']
 	def issueManagement = [system: 'JIRA', url: 'http://jira.grails.org/browse/GPLOGBACK']
 	def scm = [url: 'https://github.com/grails-plugins/grails-logback']
 
