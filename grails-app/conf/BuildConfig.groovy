@@ -5,7 +5,7 @@ grails.project.docs.output.dir = 'docs/manual' // for backwards-compatibility, t
 
 grails.project.dependency.resolution = {
 
-	inherits('global') {
+	inherits 'global', {
 		excludes 'grails-plugin-log4j'
 	}
 
@@ -30,10 +30,6 @@ grails.project.dependency.resolution = {
 			excludes 'janino', 'jansi', 'mail', 'geronimo-jms_1.1_spec', 'easymock', 'servlet-api', 'scala-library', 'junit', 'fest-assert'
 		}
 
-		test 'dumbster:dumbster:1.6', {
-			transitive = false
-			export = false
-		}
 		test 'javax.mail:mail:1.4.5', {
 			transitive = false
 			export = false
@@ -42,6 +38,10 @@ grails.project.dependency.resolution = {
 
 	plugins {
 		build(':release:2.2.0', ':rest-client-builder:1.0.3') {
+			export = false
+		}
+
+		test ':dumbster:0.2', {
 			export = false
 		}
 	}

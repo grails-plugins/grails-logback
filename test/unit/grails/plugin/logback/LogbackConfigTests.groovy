@@ -1,5 +1,6 @@
 package grails.plugin.logback
 
+import grails.plugin.dumbster.Dumbster
 import groovy.sql.Sql
 
 import java.sql.Connection
@@ -9,15 +10,25 @@ import org.slf4j.LoggerFactory
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.db.DBAppender
 import ch.qos.logback.classic.net.SMTPAppender
 import ch.qos.logback.core.FileAppender
 import ch.qos.logback.core.rolling.RollingFileAppender
 
-import com.dumbster.smtp.SimpleSmtpServer
 import com.dumbster.smtp.SmtpMessage
 
 class LogbackConfigTests extends GroovyTestCase {
+
+	private Dumbster dumbster = new Dumbster()
+
+	@Override
+	protected void setUp() {
+		super.setUp()
+		dumbster.grailsApplication = [
+			config: [dumbster: [enabled: true]],
+			mainContext: [containsBean: { String -> false }]]
+	}
 
 	void testParseSimple() {
 		String config = '''
@@ -33,7 +44,8 @@ logback = {
 		parse config
 
 		def names = ['ROOT', 'StackTrace'] + split('org.codehaus.groovy.grails') + split('org.springframework') +
-			split('org.hibernate') + split('net.sf.ehcache.hibernate') + split('com.foo.bar')
+			split('org.hibernate') + split('net.sf.ehcache.hibernate') + split('com.foo.bar') +
+			['grails.plugin.dumbster', 'grails.plugin.dumbster.Dumbster']
 
 		def loggerNames = findLoggerNames()
 
@@ -136,7 +148,7 @@ logback = {
 """
 		parse config
 
-		LogbackLoggerAdapter logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
 		assert Level.INFO == logger.level
 
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
@@ -174,7 +186,7 @@ logback = {
 
 		parse config
 
-		LogbackLoggerAdapter logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
 		assert Level.INFO == logger.level
 
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
@@ -215,7 +227,7 @@ logback = {
 
 		parse config
 
-		LogbackLoggerAdapter logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
 		assert Level.INFO == logger.level
 
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
@@ -271,7 +283,7 @@ logback = {
 
 		parse config
 
-		LogbackLoggerAdapter logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
 		assert Level.INFO == logger.level
 
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
@@ -352,7 +364,7 @@ CREATE TABLE logging_event_exception (
 		def sql = Sql.newInstance(url, user, password, driver)
 		ddl.split(';').each { sql.executeUpdate it }
 
-		LogbackLoggerAdapter logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
 		assert Level.INFO == logger.level
 
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
@@ -374,28 +386,13 @@ CREATE TABLE logging_event_exception (
 
 	void testSmtpAppender() {
 
-		int port = 1025
-		while (true) {
-			try {
-				new ServerSocket(port).close()
-				break
-			}
-			catch (IOException e) {
-				port++
-				if (port > 2000) {
-					fail 'cannot find open port'
-				}
-			}
-		}
+		dumbster.start()
 
-		SimpleSmtpServer server = SimpleSmtpServer.start(port)
-		try {
+		String from = 'test@testing.com'
+		String host = 'localhost'
+		String to = 'to@testing.com'
 
-			String from = 'test@testing.com'
-			String host = 'localhost'
-			String to = 'to@testing.com'
-
-			String config = """
+		String config = """
 import ch.qos.logback.classic.PatternLayout
 import ch.qos.logback.classic.net.SMTPAppender
 
@@ -404,7 +401,7 @@ logback = {
 
 		def layout = dslInit(new PatternLayout(outputPatternAsHeader: false, pattern: '%-4relative %-5level %class - %msg%n'))
 		def smtp = new SMTPAppender(name: 'smtp', asynchronousSending: false, from: '$from', smtpHost: '$host',
-		                            smtpPort: $port, layout: layout)
+		                            smtpPort: $dumbster.port, layout: layout)
 		smtp.context = context // need this now for the parser that's used for the To address
 		smtp.addTo '$to'
 		appender smtp
@@ -413,31 +410,27 @@ logback = {
 	info smtp: 'grails.app.controllers.BookController'
 }"""
 
-			parse config
+		parse config
 
-			LogbackLoggerAdapter logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-			assert Level.INFO == logger.level
+		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		assert Level.INFO == logger.level
 
-			def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-			assert 1 == appenders.size()
+		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
+		assert 1 == appenders.size()
 
-			assert appenders[0] instanceof SMTPAppender
+		assert appenders[0] instanceof SMTPAppender
 
-			root.detachAppender 'stdout'
-			10000.times { logger.debug 'this is a debug message' }
+		root.detachAppender 'stdout'
+		10000.times { logger.debug 'this is a debug message' }
 
-			10.times { logger.error "event$it" }
+		10.times { logger.error "event$it" }
 
-			assert 10 == server.receivedEmailSize
+		assert 10 == dumbster.messageCount
 
-			server.receivedEmail.eachWithIndex { SmtpMessage email, int index ->
-				assert "g.a.c.BookController - event$index" == email.getHeaderValue('Subject')
-				assert email.body.contains('ERROR')
-				assert email.body.contains("event$index")
-			}
-		}
-		finally {
-			server.stop()
+		dumbster.messages.eachWithIndex { SmtpMessage email, int index ->
+			assert "g.a.c.BookController - event$index" == email.getHeaderValue('Subject')
+			assert email.body.contains('ERROR')
+			assert email.body.contains("event$index")
 		}
 	}
 
@@ -445,7 +438,9 @@ logback = {
 	protected void tearDown() {
 		super.tearDown()
 		LoggerFactory.ILoggerFactory.reset()
-		Utils.clearLoggers()
+		LoggerContext loggerFactory = LoggerFactory.ILoggerFactory
+		loggerFactory.loggerCache.clear()
+		dumbster.reset()
 	}
 
 	private List<String> split(String name) {
@@ -460,8 +455,8 @@ logback = {
 	}
 
 	private List<String> findLoggerNames() {
-		LogbackLoggerFactory loggerFactory = LoggerFactory.ILoggerFactory
-		List<Logger> loggers = loggerFactory.loggerContext.loggerList
+		LoggerContext loggerFactory = LoggerFactory.ILoggerFactory
+		List<Logger> loggers = loggerFactory.loggerList
 
 		def loggerNames = loggers.collect { it.name }.sort()
 		loggerNames.removeAll split(getClass().name)
@@ -470,7 +465,7 @@ logback = {
 		loggerNames
 	}
 
-	private LogbackLoggerAdapter getRoot() {
+	private Logger getRoot() {
 		LoggerFactory.getLogger Logger.ROOT_LOGGER_NAME
 	}
 
