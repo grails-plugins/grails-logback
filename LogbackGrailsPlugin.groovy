@@ -9,7 +9,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler
 
 class LogbackGrailsPlugin {
 
-	String version = '0.2'
+	String version = '0.3'
 	String grailsVersion = '2.0 > *'
 	String title = 'Logback Plugin'
 	String author = 'Burt Beckwith'
