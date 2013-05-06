@@ -378,9 +378,8 @@ CREATE TABLE logging_event_exception (
 		10.times { logger.error "event$it" }
 		logger.error "with exception", new Exception('oh no')
 
-
 		assert 11 == sql.firstRow('select count(*) c from logging_event').c
-		assert 0 == sql.firstRow('select count(*) c from logging_event_property').c
+		assert 11 == sql.firstRow('select count(*) c from logging_event_property').c
 		assert sql.firstRow('select count(*) c from logging_event_exception').c > 0 // stack trace lines, number could change
 	}
 
