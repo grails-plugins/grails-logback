@@ -201,7 +201,7 @@ logback = {
 
 		String xml = '<events>\n' + appenders[0].renderedOutput.replaceAll('log4j:', '') + '\n</events>'
 
-		def events = new XmlSlurper().parseText(xml).event
+		def events = parseXml(xml).event
 		assert 10 == events.size()
 
 		events.eachWithIndex { event, int index ->
@@ -242,7 +242,7 @@ logback = {
 
 		String xml = appenders[0].renderedOutput + '\n</table></body></html>'
 		xml = xml[xml.indexOf('<html>')..-1] // remove the doctype
-		def trs = new XmlSlurper().parseText(xml).body.table.tr
+		def trs = parseXml(xml).body.table.tr
 		assert 11 == trs.size()
 
 		trs.eachWithIndex { tr, int index ->
@@ -470,5 +470,11 @@ logback = {
 
 	private void parse(String config) {
 		LogbackConfig.initialize new ConfigSlurper().parse(config)
+	}
+
+	private parseXml(String xml) {
+		def slurper = new XmlSlurper()
+		slurper.setFeature 'http://apache.org/xml/features/disallow-doctype-decl', true
+		slurper.parseText xml
 	}
 }
