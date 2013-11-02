@@ -12,6 +12,7 @@ import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.db.DBAppender
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.core.Appender
+import ch.qos.logback.classic.AsyncAppender
 import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.FileAppender
 import ch.qos.logback.core.encoder.EchoEncoder
@@ -31,7 +32,7 @@ class LogbackConfig {
 
 	protected static final ENCODERS = [xml: XmlEncoder, html: HtmlEncoder, simple: EchoEncoder, pattern: PatternLayoutEncoder]
 	protected static final APPENDERS = [jdbc: DBAppender, 'null': NOPAppender, console: ConsoleAppender,
-	                                    file: FileAppender, rollingFile: RollingFileAppender]
+	                                    file: FileAppender, rollingFile: RollingFileAppender, async: AsyncAppender]
 
 	protected Map appenders = [:]
 	protected ConfigObject config
@@ -114,7 +115,9 @@ class LogbackConfig {
 					}
 					rolling.triggeringPolicy.start()
 				}
-			}
+			} else if (appender instanceof AsyncAppender) {
+        (appender as AsyncAppender).addAppender(appenders[constructorArgs['ref']])
+      }
 
 			if (appender.name) {
 				appenders[appender.name] = appender
