@@ -1,5 +1,6 @@
 package grails.plugin.logback
 
+import ch.qos.logback.classic.AsyncAppender
 import grails.plugin.dumbster.Dumbster
 import groovy.sql.Sql
 
@@ -90,7 +91,42 @@ logback = {
 		assert Level.INFO == logger.level
 	}
 
-	void testRollingFileAppender() {
+  void testAsyncAppender() {
+    String config = '''
+logback = {
+	appenders {
+		file name: 'mylog', file:'/tmp/mylog.log'
+		async name: 'myasync', ref: 'mylog'
+	}
+
+	info myasync: 'grails.app.controllers.BookController'
+
+	root {
+		debug 'stdout', 'myasync'
+	}
+}'''
+
+    parse config
+
+    def appenders = root.iteratorForAppenders().collect { it }.sort { it.getClass().name }
+    assert 2 == appenders.size()
+    assert appenders[0] instanceof AsyncAppender
+    assert appenders[1] instanceof LogbackConsoleAppender
+    assert Level.DEBUG == root.level
+
+    AsyncAppender async = appenders[0] as AsyncAppender
+
+    assert '/tmp/mylog.log' == (async.getAppender("mylog") as FileAppender).file
+    assert 'myasync' == appenders[0].name
+
+    def logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+    appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
+    assert 1 == appenders.size()
+    assert appenders[0] instanceof AsyncAppender
+    assert Level.INFO == logger.level
+  }
+
+  void testRollingFileAppender() {
 		String config = '''
 import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 
