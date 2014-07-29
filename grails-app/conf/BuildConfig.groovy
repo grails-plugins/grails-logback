@@ -29,6 +29,13 @@ grails.project.dependency.resolution = {
 			excludes 'easymock', 'fest-assert', 'geronimo-jms_1.1_spec', 'janino', 'jansi', 'junit',
 			         'mail', 'scala-library', 'servlet-api'
 		}
+        compile 'commons-beanutils:commons-beanutils-core:1.8.3', {
+            excludes 'commons-logging'
+        }
+        compile 'org.slf4j:jul-to-slf4j:1.7.5', {
+            excludes 'slf4j-api', 'slf4j-log4j12'
+        }
+
 		test 'javax.mail:mail:1.4.5', {
 			transitive = false
 			export = false

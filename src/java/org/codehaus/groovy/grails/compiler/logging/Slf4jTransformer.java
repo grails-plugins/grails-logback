@@ -65,9 +65,20 @@ public class Slf4jTransformer implements AllArtefactClassInjector, Comparable<Cl
 		performInjection(source, null, classNode);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.codehaus.groovy.grails.compiler.injection.ClassInjector#shouldInject(java.net.URL)
-	 */
+    /**
+     * Handles injection of properties, methods etc. into a class.
+     *
+     * @param source    The source unit
+     * @param classNode The ClassNode instance
+     */
+    @Override
+    public void performInjectionOnAnnotatedClass(SourceUnit source, ClassNode classNode) {
+        this.performInjection(source, classNode);
+    }
+
+    /* (non-Javadoc)
+     * @see org.codehaus.groovy.grails.compiler.injection.ClassInjector#shouldInject(java.net.URL)
+     */
 	public boolean shouldInject(URL url) {
 		return true; // Add log property to all artifact types
 	}
