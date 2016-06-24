@@ -29,11 +29,6 @@ import org.slf4j.LoggerFactory;
 @AstTransformer
 public class Slf4jTransformer implements AllArtefactClassInjector, Comparable<ClassInjector> {
 
-	/* (non-Javadoc)
-	 * @see org.codehaus.groovy.grails.compiler.injection.ClassInjector#performInjection(
-	 * 	org.codehaus.groovy.control.SourceUnit, org.codehaus.groovy.classgen.GeneratorContext,
-	 * 	org.codehaus.groovy.ast.ClassNode)
-	 */
 	public void performInjection(SourceUnit source, GeneratorContext context, ClassNode classNode) {
 		final FieldNode existingField = classNode.getDeclaredField("log");
 		if (existingField != null || classNode.isInterface()) {
@@ -57,35 +52,18 @@ public class Slf4jTransformer implements AllArtefactClassInjector, Comparable<Cl
 		classNode.addField(logVariable);
 	}
 
-	/* (non-Javadoc)
-	 * @see org.codehaus.groovy.grails.compiler.injection.ClassInjector#performInjection(
-	 * 	org.codehaus.groovy.control.SourceUnit, org.codehaus.groovy.ast.ClassNode)
-	 */
 	public void performInjection(SourceUnit source, ClassNode classNode) {
 		performInjection(source, null, classNode);
 	}
 
-    /**
-     * Handles injection of properties, methods etc. into a class.
-     *
-     * @param source    The source unit
-     * @param classNode The ClassNode instance
-     */
-    @Override
-    public void performInjectionOnAnnotatedClass(SourceUnit source, ClassNode classNode) {
-        this.performInjection(source, classNode);
-    }
+	public void performInjectionOnAnnotatedClass(SourceUnit source, ClassNode classNode) {
+		performInjection(source, classNode);
+	}
 
-    /* (non-Javadoc)
-     * @see org.codehaus.groovy.grails.compiler.injection.ClassInjector#shouldInject(java.net.URL)
-     */
 	public boolean shouldInject(URL url) {
 		return true; // Add log property to all artifact types
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Comparable#compareTo(java.lang.Object)
-	 */
 	public int compareTo(ClassInjector other) {
 		// ensure this runs before LoggingTransformer which adds a commons-logging logger
 		return -1;

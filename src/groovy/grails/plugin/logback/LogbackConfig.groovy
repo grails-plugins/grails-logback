@@ -115,9 +115,10 @@ class LogbackConfig {
 					}
 					rolling.triggeringPolicy.start()
 				}
-			} else if (appender instanceof AsyncAppender) {
-        (appender as AsyncAppender).addAppender(appenders[constructorArgs['ref']])
-      }
+			}
+			else if (appender instanceof AsyncAppender) {
+				(appender as AsyncAppender).addAppender(appenders[constructorArgs['ref']])
+			}
 
 			if (appender.name) {
 				appenders[appender.name] = appender

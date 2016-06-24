@@ -1,9 +1,11 @@
+*.iml
 *.log
-/target
+/.classpath
+/.idea
+/.project
+/.settings
 /docs
 /grails-*.zip
 /plugin.xml
-.settings
-web-app
-.idea/
-*.iml
+/target
+/web-app

@@ -21,14 +21,14 @@ class LogbackGrailsPlugin {
 	List evict = ['logging']
 
 	String license = 'APACHE'
-	def organization = [name: 'SpringSource', url: 'http://www.springsource.org/']
-	def issueManagement = [system: 'JIRA', url: 'http://jira.grails.org/browse/GPLOGBACK']
+	def organization = [name: 'Grails', url: 'http://grails.org/']
+	def issueManagement = [url: 'https://github.com/grails-plugins/grails-logback/issues']
 	def scm = [url: 'https://github.com/grails-plugins/grails-logback']
 
 	def doWithWebDescriptor = { xml ->
 
 		initLogging application
-		
+
 		def mappingElement = xml.'filter-mapping'
 		mappingElement = mappingElement[mappingElement.size() - 1]
 
