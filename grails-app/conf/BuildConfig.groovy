@@ -1,6 +1,6 @@
 grails.project.work.dir = 'target'
-grails.project.docs.output.dir = 'docs/manual' // for backwards-compatibility, the docs are checked into gh-pages branch
 
+grails.project.dependency.resolver = 'maven'
 grails.project.dependency.resolution = {
 
 	inherits 'global', {
@@ -16,37 +16,22 @@ grails.project.dependency.resolution = {
 		mavenCentral()
 	}
 
-	String logbackVersion = '1.0.12'
-
 	dependencies {
-		compile "ch.qos.logback:logback-classic:$logbackVersion", {
-			excludes 'dom4j', 'fest-assert', 'geronimo-jms_1.1_spec', 'greenmail', 'groovy-all', 'h2',
-			         'hsqldb', 'integration', 'janino', 'junit', 'log4j-over-slf4j', 'logback-core',
-			         'mail', 'mysql-connector-java', 'org.apache.felix.main', 'postgresql', 'scala-library',
-			         'servlet-api', 'slf4j-api', 'slf4j-ext', 'subethasmtp'
-		}
-		compile "ch.qos.logback:logback-core:$logbackVersion", {
-			excludes 'easymock', 'fest-assert', 'geronimo-jms_1.1_spec', 'janino', 'jansi', 'junit',
-			         'mail', 'scala-library', 'servlet-api'
-		}
-        compile 'commons-beanutils:commons-beanutils-core:1.8.3', {
-            excludes 'commons-logging'
-        }
-        compile 'org.slf4j:jul-to-slf4j:1.7.5', {
-            excludes 'slf4j-api', 'slf4j-log4j12'
-        }
+		String logbackVersion = '1.1.7'
 
-		test 'javax.mail:mail:1.4.5', {
-			transitive = false
-			export = false
-		}
+		compile "ch.qos.logback:logback-classic:$logbackVersion"
+		compile "ch.qos.logback:logback-core:$logbackVersion"
+		compile 'commons-beanutils:commons-beanutils-core:1.8.3'
+		compile 'org.slf4j:jul-to-slf4j:1.7.21'
+		compile 'org.slf4j:slf4j-api:1.7.21'
+
+		test 'org.grails:grails-datastore-test-support:1.0.2-grails-2.4'
 	}
 
 	plugins {
-		build(':release:2.2.1', ':rest-client-builder:1.0.3') {
+		build ':release:3.1.2', ':rest-client-builder:2.1.1', {
 			export = false
 		}
-
 		test ':dumbster:0.2', {
 			export = false
 		}
