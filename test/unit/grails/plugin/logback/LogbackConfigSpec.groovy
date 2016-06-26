@@ -1,6 +1,5 @@
 package grails.plugin.logback
 
-import ch.qos.logback.classic.AsyncAppender
 import grails.plugin.dumbster.Dumbster
 import groovy.sql.Sql
 
@@ -9,6 +8,8 @@ import java.sql.DriverManager
 
 import org.slf4j.LoggerFactory
 
+import spock.lang.Specification
+import ch.qos.logback.classic.AsyncAppender
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
@@ -19,20 +20,26 @@ import ch.qos.logback.core.rolling.RollingFileAppender
 
 import com.dumbster.smtp.SmtpMessage
 
-class LogbackConfigTests extends GroovyTestCase {
+class LogbackConfigSpec extends Specification {
 
 	private Dumbster dumbster = new Dumbster()
 
-	@Override
-	protected void setUp() {
-		super.setUp()
+	void setup() {
 		dumbster.grailsApplication = [
 			config: [dumbster: [enabled: true]],
 			mainContext: [containsBean: { String -> false }]]
 	}
 
+	void cleanup() {
+		LoggerFactory.ILoggerFactory.reset()
+		LoggerContext loggerFactory = LoggerFactory.ILoggerFactory
+		loggerFactory.loggerCache.clear()
+		dumbster.reset()
+	}
+
 	void testParseSimple() {
-		String config = '''
+		when:
+		String config = """
 logback = {
 	error 'org.codehaus.groovy.grails',
 	      'org.springframework',
@@ -40,7 +47,7 @@ logback = {
 	      'net.sf.ehcache.hibernate'
 	debug 'com.foo.bar'
 }
-'''
+"""
 
 		parse config
 
@@ -50,15 +57,20 @@ logback = {
 
 		def loggerNames = findLoggerNames()
 
-		assert names.unique().sort() == loggerNames
+		then:
+		loggerNames.containsAll names.unique()
 
+		when:
 		def logger = LoggerFactory.getLogger('org.codehaus.groovy.grails.Foo')
-		assert logger
-		assert null == logger.level
-		assert Level.ERROR == logger.effectiveLevel
+
+		then:
+		logger
+		null == logger.level
+		Level.ERROR == logger.effectiveLevel
 	}
 
 	void testFileAppender() {
+		when:
 		String config = '''
 logback = {
 	appenders {
@@ -75,90 +87,110 @@ logback = {
 		parse config
 
 		def appenders = root.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 2 == appenders.size()
-		assert appenders[0] instanceof FileAppender
-		assert appenders[1] instanceof LogbackConsoleAppender
-		assert Level.DEBUG == root.level
 
-		assert appenders[0].append
-		assert '/tmp/mylog.log' == appenders[0].fileName
-		assert 'mylog' == appenders[0].name
+		then:
+		2 == appenders.size()
+		appenders[0] instanceof FileAppender
+		appenders[1] instanceof LogbackConsoleAppender
+		Level.DEBUG == root.level
 
+		appenders[0].append
+		'/tmp/mylog.log' == appenders[0].fileName
+		'mylog' == appenders[0].name
+
+		when:
 		def logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
 		appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
-		assert appenders[0] instanceof FileAppender
-		assert Level.INFO == logger.level
+
+		then:
+		1 == appenders.size()
+		appenders[0] instanceof FileAppender
+		Level.INFO == logger.level
 	}
 
-  void testAsyncAppender() {
-    String config = '''
-logback = {
-	appenders {
-		file name: 'mylog', file:'/tmp/mylog.log'
-		async name: 'myasync', ref: 'mylog'
+	void testAsyncAppender() {
+		when:
+		String config = '''
+	logback = {
+		appenders {
+		file name: "mylog", file: "/tmp/mylog.log"
+		async name: "myasync", ref: "mylog"
 	}
 
-	info myasync: 'grails.app.controllers.BookController'
+	info myasync: "grails.app.controllers.BookController"
 
 	root {
-		debug 'stdout', 'myasync'
+		debug "stdout", "myasync"
 	}
 }'''
 
-    parse config
+		parse config
 
-    def appenders = root.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-    assert 2 == appenders.size()
-    assert appenders[0] instanceof AsyncAppender
-    assert appenders[1] instanceof LogbackConsoleAppender
-    assert Level.DEBUG == root.level
+		def appenders = root.iteratorForAppenders().collect { it }.sort { it.getClass().name }
 
-    AsyncAppender async = appenders[0] as AsyncAppender
+		then:
+		2 == appenders.size()
+		appenders[0] instanceof AsyncAppender
+		appenders[1] instanceof LogbackConsoleAppender
+		Level.DEBUG == root.level
 
-    assert '/tmp/mylog.log' == (async.getAppender("mylog") as FileAppender).file
-    assert 'myasync' == appenders[0].name
+		when:
+		AsyncAppender async = appenders[0] as AsyncAppender
 
-    def logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-    appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-    assert 1 == appenders.size()
-    assert appenders[0] instanceof AsyncAppender
-    assert Level.INFO == logger.level
-  }
+		then:
+		'/tmp/mylog.log' == (async.getAppender("mylog") as FileAppender).file
+		'myasync' == appenders[0].name
 
-  void testRollingFileAppender() {
+		when:
+		def logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
+		appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
+
+		then:
+		1 == appenders.size()
+		appenders[0] instanceof AsyncAppender
+		Level.INFO == logger.level
+	}
+
+	void testRollingFileAppender() {
+		when:
 		String config = '''
 import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 
 logback = {
 	appenders {
-		rollingFile name: 'myAppender', file: '/tmp/myApp.log',
-		            encoder: pattern(pattern: '%-4relative [%thread] %-5level %logger{35} - %msg%n'),
-		            rollingPolicy: new TimeBasedRollingPolicy(fileNamePattern: 'mylog-%d{yyyy-MM-dd}.%i.txt', maxHistory: 30)
+		rollingFile name: "myAppender", file: "/tmp/myApp.log",
+		            encoder: pattern(pattern: "%-4relative [%thread] %-5level %logger{35} - %msg%n"),
+		            rollingPolicy: new TimeBasedRollingPolicy(fileNamePattern: "mylog-%d{yyyy-MM-dd}.txt", maxHistory: 30)
 	}
 
-	trace myAppender: 'grails.app.controllers.BookController'
+	trace myAppender: "grails.app.controllers.BookController"
 }
 '''
 		parse config
 
 		def logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.TRACE == logger.level
 
+		then:
+		Level.TRACE == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof RollingFileAppender
-		assert appenders[0].append
-		assert '/tmp/myApp.log' == appenders[0].fileName
-		assert 'myAppender' == appenders[0].name
-		assert '%-4relative [%thread] %-5level %logger{35} - %msg%n' == appenders[0].encoder.pattern
-		assert appenders[0].triggeringPolicy == appenders[0].rollingPolicy
-		assert 30 == appenders[0].rollingPolicy.maxHistory
-		assert 'mylog-%d{yyyy-MM-dd}.%i.txt' == appenders[0].rollingPolicy.fileNamePatternStr
+		then:
+		1 == appenders.size()
+
+		appenders[0] instanceof RollingFileAppender
+		appenders[0].append
+		'/tmp/myApp.log' == appenders[0].fileName
+		'myAppender' == appenders[0].name
+		'%-4relative [%thread] %-5level %logger{35} - %msg%n' == appenders[0].encoder.pattern
+		appenders[0].triggeringPolicy == appenders[0].rollingPolicy
+		30 == appenders[0].rollingPolicy.maxHistory
+		'mylog-%d{yyyy-MM-dd}.txt' == appenders[0].rollingPolicy.fileNamePatternStr
 	}
 
 	void testFileRolling() {
+		when:
 		File tempDir = new File(System.getProperty('java.io.tmpdir'))
 
 		tempDir.eachFileRecurse { File file ->
@@ -185,16 +217,22 @@ logback = {
 		parse config
 
 		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.INFO == logger.level
 
+		then:
+		Level.INFO == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof RollingFileAppender
-		assert '/tmp/logback-test.log' == appenders[0].fileName
-		assert '100' == appenders[0].triggeringPolicy.maxFileSize
-		assert '/tmp/logback-test.%i.log' == appenders[0].rollingPolicy.fileNamePatternStr
+		then:
+		1 == appenders.size()
 
+		appenders[0] instanceof RollingFileAppender
+		'/tmp/logback-test.log' == appenders[0].fileName
+		'100' == appenders[0].triggeringPolicy.maxFileSize
+		'/tmp/logback-test.%i.log' == appenders[0].rollingPolicy.fileNamePatternStr
+
+		when:
 		root.detachAppender 'stdout'
 		10000.times { logger.debug 'this is a debug message' }
 		100.times { logger.error '1234567890' }
@@ -205,31 +243,40 @@ logback = {
 				count++
 			}
 		}
-		assert 4 == count
+
+		then:
+		4 == count
 	}
 
 	void testXmlEncoder() {
+		when:
 		String config = '''
 import grails.plugin.logback.MemoryAppender
 
 logback = {
 	appenders {
-		appender new MemoryAppender(name: 'memory', encoder: xml)
+		appender new MemoryAppender(name: "memory", encoder: xml)
 	}
 
-	info memory: 'grails.app.controllers.BookController'
+	info memory: "grails.app.controllers.BookController"
 }'''
 
 		parse config
 
 		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.INFO == logger.level
 
+		then:
+		Level.INFO == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof MemoryAppender
+		then:
+		1 == appenders.size()
 
+		appenders[0] instanceof MemoryAppender
+
+		when:
 		root.detachAppender 'stdout'
 		10000.times { logger.debug 'this is a debug message' }
 
@@ -238,7 +285,9 @@ logback = {
 		String xml = '<events>\n' + appenders[0].renderedOutput.replaceAll('log4j:', '') + '\n</events>'
 
 		def events = parseXml(xml).event
-		assert 10 == events.size()
+
+		then:
+		10 == events.size()
 
 		events.eachWithIndex { event, int index ->
 			assert 'grails.app.controllers.BookController' == event.@logger.text()
@@ -250,6 +299,7 @@ logback = {
 	}
 
 	void testHtmlEncoder() {
+		when:
 		String config = '''
 import grails.plugin.logback.MemoryAppender
 
@@ -264,13 +314,19 @@ logback = {
 		parse config
 
 		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.INFO == logger.level
 
+		then:
+		Level.INFO == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof MemoryAppender
+		then:
+		1 == appenders.size()
 
+		appenders[0] instanceof MemoryAppender
+
+		when:
 		root.detachAppender 'stdout'
 		10000.times { logger.debug 'this is a debug message' }
 
@@ -279,7 +335,9 @@ logback = {
 		String xml = appenders[0].renderedOutput + '\n</table></body></html>'
 		xml = xml[xml.indexOf('<html>')..-1] // remove the doctype
 		def trs = parseXml(xml).body.table.tr
-		assert 11 == trs.size()
+
+		then:
+		11 == trs.size()
 
 		trs.eachWithIndex { tr, int index ->
 			if (index == 0) {
@@ -306,6 +364,7 @@ logback = {
 	}
 
 	void testEchoEncoder() {
+		when:
 		String config = '''
 import grails.plugin.logback.MemoryAppender
 
@@ -320,26 +379,35 @@ logback = {
 		parse config
 
 		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.INFO == logger.level
 
+		then:
+		Level.INFO == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof MemoryAppender
+		then:
+		1 == appenders.size()
 
+		appenders[0] instanceof MemoryAppender
+
+		when:
 		root.detachAppender 'stdout'
 		10000.times { logger.debug 'this is a debug message' }
 
 		10.times { logger.error "event$it" }
 
 		def lines = appenders[0].renderedOutput.readLines()
-		assert 10 == lines.size()
+
+		then:
+		10 == lines.size()
 		lines.eachWithIndex { String line, int index ->
 			assert "[ERROR] event$index" == line.trim()
 		}
 	}
 
 	void testDbAppender() {
+		when:
 		String url = 'jdbc:h2:mem:logback'
 		String user = 'sa'
 		String password = ''
@@ -401,26 +469,33 @@ CREATE TABLE logging_event_exception (
 		ddl.split(';').each { sql.executeUpdate it }
 
 		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.INFO == logger.level
 
+		then:
+		Level.INFO == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof DBAppender
+		then:
+		1 == appenders.size()
 
+		appenders[0] instanceof DBAppender
+
+		when:
 		root.detachAppender 'stdout'
 		10000.times { logger.debug 'this is a debug message' }
 
 		10.times { logger.error "event$it" }
 		logger.error "with exception", new Exception('oh no')
 
-		assert 11 == sql.firstRow('select count(*) c from logging_event').c
-		assert 11 == sql.firstRow('select count(*) c from logging_event_property').c
-		assert sql.firstRow('select count(*) c from logging_event_exception').c > 0 // stack trace lines, number could change
+		then:
+		11 == sql.firstRow('select count(*) c from logging_event').c
+		11 == sql.firstRow('select count(*) c from logging_event_property').c
+		sql.firstRow('select count(*) c from logging_event_exception').c > 0 // stack trace lines, number could change
 	}
 
 	void testSmtpAppender() {
-
+		when:
 		dumbster.start()
 
 		String from = 'test@testing.com'
@@ -448,34 +523,32 @@ logback = {
 		parse config
 
 		Logger logger = LoggerFactory.getLogger('grails.app.controllers.BookController')
-		assert Level.INFO == logger.level
 
+		then:
+		Level.INFO == logger.level
+
+		when:
 		def appenders = logger.iteratorForAppenders().collect { it }.sort { it.getClass().name }
-		assert 1 == appenders.size()
 
-		assert appenders[0] instanceof SMTPAppender
+		then:
+		1 == appenders.size()
 
+		appenders[0] instanceof SMTPAppender
+
+		when:
 		root.detachAppender 'stdout'
 		10000.times { logger.debug 'this is a debug message' }
 
 		10.times { logger.error "event$it" }
 
-		assert 10 == dumbster.messageCount
+		then:
+		10 == dumbster.messageCount
 
 		dumbster.messages.eachWithIndex { SmtpMessage email, int index ->
 			assert "g.a.c.BookController - event$index" == email.getHeaderValue('Subject')
 			assert email.body.contains('ERROR')
 			assert email.body.contains("event$index")
 		}
-	}
-
-	@Override
-	protected void tearDown() {
-		super.tearDown()
-		LoggerFactory.ILoggerFactory.reset()
-		LoggerContext loggerFactory = LoggerFactory.ILoggerFactory
-		loggerFactory.loggerCache.clear()
-		dumbster.reset()
 	}
 
 	private List<String> split(String name) {
