@@ -17,8 +17,8 @@ class LogbackGrailsPlugin {
 	String description = 'Replaces Log4j with Logback for logging'
 	String documentation = 'http://grails.org/plugin/logback'
 	String packaging = 'binary'
-	def loadBefore = ['core', 'grails-logging']
-	def evict = ['grails-logging', 'grails-plugin-log4j']
+	def loadBefore = ['core', 'logging']
+	def evict = ['groovyPages', 'logging'] // groovyPages transitively brings in grails-logging and must be added back in BuildConfig with excludes
 
 	String license = 'APACHE'
 	def organization = [name: 'Grails', url: 'http://grails.org/']
