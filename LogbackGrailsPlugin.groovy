@@ -17,8 +17,8 @@ class LogbackGrailsPlugin {
 	String description = 'Replaces Log4j with Logback for logging'
 	String documentation = 'http://grails.org/plugin/logback'
 	String packaging = 'binary'
-	List loadBefore = ['core', 'logging']
-	List evict = ['logging']
+	def loadBefore = ['core', 'grails-logging']
+	def evict = ['grails-logging', 'grails-plugin-log4j']
 
 	String license = 'APACHE'
 	def organization = [name: 'Grails', url: 'http://grails.org/']
@@ -33,7 +33,7 @@ class LogbackGrailsPlugin {
 		mappingElement = mappingElement[mappingElement.size() - 1]
 
 		mappingElement + {
-			'listener' {
+			listener {
 				'listener-class'(LogbackConfigListener.name)
 			}
 		}
